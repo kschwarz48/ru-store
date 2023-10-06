@@ -57,23 +57,15 @@ public class RUStoreClient {
 	 */
 	public int put(String key, byte[] data) {
 		try {
-			connect();
-
-			System.out.println("Sending PUT command to server.");
 			out.writeUTF("PUT");
-			System.out.println("Sending key to server: " + key);
 			out.writeUTF(key);
-			System.out.println("Sending data size to server: " + data.length);
 			out.writeInt(data.length);
-			System.out.println("Sending data to server.");
 			out.write(data);
 			out.flush(); 
 
 			// Await response from server
 			int response = in.readInt();
-			System.out.println("Received response from server: " + response);
 
-	
 			if (response == 0) {  // Success
 				return 0;
 			} else if (response == 1) {  // Key already exists
@@ -116,31 +108,31 @@ public class RUStoreClient {
 	
 
 
-	/**
+		/**
 	 * Downloads arbitrary data object associated with a given key
 	 * from the object store server.
 	 * 
-	 * @param key	key associated with the object
+	 * @param key   key associated with the object
 	 * 
-	 * @return		object data as a byte array, null if key doesn't exist.
-	 *        		Throw an exception if any other issues occur.
+	 * @return      object data as a byte array, null if key doesn't exist.
+	 *              Throw an exception if any other issues occur.
 	 */
 	public byte[] get(String key) {
 		try {
-			// 1. Send "GET" command
+			// Send "GET" command
 			out.writeUTF("GET");
-	
-			// 2. Send the key
+
+			// Send the key
 			out.writeUTF(key);
-	
-			// 3. Await response from server
+
+			// Await response from server
 			int response = in.readInt();
-	
+
 			if (response == 0) {  // Success
-				// 4. Read the length of the data
+				// Read the length of the data
 				int dataLength = in.readInt();
-	
-				// 5. Read the actual data
+
+				// Read the actual data
 				byte[] data = new byte[dataLength];
 				in.readFully(data);
 				return data;
@@ -154,28 +146,26 @@ public class RUStoreClient {
 			throw new RuntimeException("Error during GET operation", e);
 		}
 	}
-	
 
 	/**
 	 * Downloads arbitrary data object associated with a given key
 	 * from the object store server and places it in a file. 
 	 * 
-	 * @param key	key associated with the object
-	 * @param	file_path	output file path
+	 * @param key       key associated with the object
+	 * @param file_path output file path
 	 * 
-	 * @return		0 upon success
-	 *        		1 if key doesn't exist
-	 *        		Throw an exception otherwise
+	 * @return          0 upon success
+	 *                  1 if key doesn't exist
+	 *                  Throw an exception otherwise
 	 */
 	public int get(String key, String file_path) {
 		try {
-			// Use the GET operation for byte[] data
 			byte[] data = get(key);
-	
+
 			if (data == null) {
 				return 1;  // Key doesn't exist
 			}
-	
+
 			// Write the data to the file
 			Files.write(Paths.get(file_path), data);
 			return 0;  // Success
@@ -184,6 +174,7 @@ public class RUStoreClient {
 			throw new RuntimeException("Error writing to file during GET operation", e);
 		}
 	}
+
 	
 
 	/**
@@ -199,13 +190,13 @@ public class RUStoreClient {
 	 */
 	public int remove(String key) {
 		try {
-			// 1. Send "REMOVE" command
+			// Send "REMOVE" command
 			out.writeUTF("REMOVE");
 	
-			// 2. Send the key
+			// Send the key
 			out.writeUTF(key);
 	
-			// 3. Await response from server
+			// Await response from server
 			int response = in.readInt();
 	
 			if (response == 0) {  // Success
@@ -230,10 +221,10 @@ public class RUStoreClient {
 	 */
 	public String[] list() {
 		try {
-			// 1. Send "LIST" command
+			// Send "LIST" command
 			out.writeUTF("LIST");
 	
-			// 2. Await response from server for the number of keys
+			// Await response from server for the number of keys
 			int keyCount = in.readInt();
 	
 			if (keyCount == 0) {
@@ -261,18 +252,21 @@ public class RUStoreClient {
 	 */
 	public void disconnect() {
 		try {
-			// 1. Send "DISCONNECT" command
-			out.writeUTF("DISCONNECT");
+			if (!socket.isClosed()) {
+				// Send "DISCONNECT" command
+				out.writeUTF("DISCONNECT");
 	
-			// 2. Close the streams and the socket
-			in.close();
-			out.close();
-			socket.close();
+				// Close the streams and the socket
+				in.close();
+				out.close();
+				socket.close();
+			}
 		} catch (IOException e) {
 			e.printStackTrace();
 			throw new RuntimeException("Error during DISCONNECT operation", e);
 		}
 	}
+	
 	
 
 }

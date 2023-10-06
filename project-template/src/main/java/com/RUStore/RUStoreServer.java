@@ -20,49 +20,50 @@ public class RUStoreServer {
         }
 
         @Override
-        public void run() {
-            try {
-                // Create DataInputStream and DataOutputStream for communication
-                DataInputStream in = new DataInputStream(clientSocket.getInputStream());
-                DataOutputStream out = new DataOutputStream(clientSocket.getOutputStream());
+		public void run() {
+			try {
+				// Create DataInputStream and DataOutputStream for communication
+				DataInputStream in = new DataInputStream(clientSocket.getInputStream());
+				DataOutputStream out = new DataOutputStream(clientSocket.getOutputStream());
 
-                while (true) {
-                    // Read the command from the client
-                    String command = in.readUTF();
+				while (true) {
+					// Read the command from the client
+					String command = in.readUTF();
 
-                    // Log the received command
-                    System.out.println("Received command: " + command);
+					// Log the received command
+					System.out.println("Received command: " + command);
 
-                    // Based on the command, decide which handler method to invoke
-                    if ("PUT".equals(command)) {
-                        handlePut(in, out);
-                    } else if ("DISCONNECT".equals(command)) {
-                        // Close the client socket when requested
-                        clientSocket.close();
-                        break; // Exit the loop
-                    }
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
+					// Based on the command, decide which handler method to invoke
+					if ("PUT".equals(command)) {
+						handlePut(in, out);
+					} else if ("GET".equals(command)) { // Handle GET command
+						handleGet(in, out);
+					} else if ("REMOVE".equals(command)) {
+						handleRemove(in, out);
+					} else if ("LIST".equals(command)) {
+						handleList(out);
+					} else if ("DISCONNECT".equals(command)) {
+						// Close the client socket when requested
+						clientSocket.close();
+						break; // Exit the loop
+					}
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
 
 
 		private void handlePut(DataInputStream in, DataOutputStream out) throws IOException {
-			System.out.println("Handling PUT request");  
-		
 			// Read the key from the client
 			String key = in.readUTF();
-			System.out.println("Received key: " + key);  
 		
 			// Read the data size from the client
 			int dataSize = in.readInt();
-			System.out.println("Data size: " + dataSize);
 		
 			// Read the data from the client
 			byte[] data = new byte[dataSize];
 			in.readFully(data);
-			System.out.println("Received data from client");
 		
 			// Store the data in the objectStore HashMap
 			if (objectStore.containsKey(key)) {
@@ -74,6 +75,67 @@ public class RUStoreServer {
 				out.writeInt(0);  // Data stored successfully
 			}
 		}
+
+		private void handleGet(DataInputStream in, DataOutputStream out) throws IOException {
+			System.out.println("Handling GET request");
+	
+			// Read the key from the client
+			String key = in.readUTF();
+	
+			if (objectStore.containsKey(key)) {
+				byte[] data = objectStore.get(key);
+	
+				// Send a success response (0) to the client
+				out.writeInt(0);
+	
+				// Send the data size to the client
+				out.writeInt(data.length);
+	
+				// Send the data to the client
+				out.write(data);
+				out.flush();
+	
+			} else {
+				// Send a key not found response (1) to the client
+				out.writeInt(1);
+				System.out.println("Key not found. Sending response: 1");
+			}
+		}
+
+		private void handleRemove(DataInputStream in, DataOutputStream out) throws IOException {
+			// Read the key from the client
+			String key = in.readUTF();
+		
+			// Check if the key exists in the object store
+			if (objectStore.containsKey(key)) {
+				// Remove the file associated with the key
+				objectStore.remove(key);
+				System.out.println("Removed object with key: " + key);
+		
+				// Send a success response
+				out.writeInt(0);  // Successful removal
+			} else {
+				// Key doesn't exist; send a response indicating that
+				out.writeInt(1);  // Key doesn't exist
+				System.out.println("Key doesn't exist. Sending response: 1");
+			}
+		}
+
+		private void handleList(DataOutputStream out) throws IOException {
+			// Get the list of keys from the object store
+			String[] keys = objectStore.keySet().toArray(new String[0]);
+		
+			// Send the number of keys to the client
+			out.writeInt(keys.length);
+		
+			// Send each key to the client
+			for (String key : keys) {
+				out.writeUTF(key);
+			}
+		}
+		
+		
+
 				
     }
 
