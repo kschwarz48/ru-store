@@ -2,9 +2,19 @@ package com.RUStore;
 
 /* any necessary Java packages here */
 
+import java.io.*;
+import java.net.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+
 public class RUStoreClient {
 
 	/* any necessary class members here */
+	private Socket socket;
+    private DataOutputStream out;
+    private DataInputStream in;
+    private String host;
+    private int port;
 
 	/**
 	 * RUStoreClient Constructor, initializes default values
@@ -16,7 +26,8 @@ public class RUStoreClient {
 	public RUStoreClient(String host, int port) {
 
 		// Implement here
-
+		this.host = host;
+        this.port = port;
 	}
 
 	/**
@@ -25,11 +36,12 @@ public class RUStoreClient {
 	 *
 	 * @return		n/a, however throw an exception if any issues occur
 	 */
-	public void connect() {
-
-		// Implement here
-
-	}
+	
+	public void connect() throws IOException {
+        socket = new Socket(host, port);
+        out = new DataOutputStream(socket.getOutputStream());
+        in = new DataInputStream(socket.getInputStream());
+    }
 
 	/**
 	 * Sends an arbitrary data object to the object store server. If an 
@@ -44,11 +56,38 @@ public class RUStoreClient {
 	 *        		Throw an exception otherwise
 	 */
 	public int put(String key, byte[] data) {
+		try {
+			connect();
 
-		// Implement here
-		return -1;
+			System.out.println("Sending PUT command to server.");
+			out.writeUTF("PUT");
+			System.out.println("Sending key to server: " + key);
+			out.writeUTF(key);
+			System.out.println("Sending data size to server: " + data.length);
+			out.writeInt(data.length);
+			System.out.println("Sending data to server.");
+			out.write(data);
+			out.flush(); 
 
+			// Await response from server
+			int response = in.readInt();
+			System.out.println("Received response from server: " + response);
+
+	
+			if (response == 0) {  // Success
+				return 0;
+			} else if (response == 1) {  // Key already exists
+				return 1;
+			} else {
+				throw new RuntimeException("Unexpected response from server during PUT operation");
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+			throw new RuntimeException("Error during PUT operation", e);
+		} 
 	}
+	
+	
 
 	/**
 	 * Sends an arbitrary data object to the object store server. If an 
@@ -62,12 +101,20 @@ public class RUStoreClient {
 	 *        		1 if key already exists
 	 *        		Throw an exception otherwise
 	 */
+
+	
+
 	public int put(String key, String file_path) {
-
-		// Implement here
-		return -1;
-
+		try {
+			byte[] data = Files.readAllBytes(Paths.get(file_path));
+			return put(key, data);
+		} catch (IOException e) {
+			e.printStackTrace();
+			throw new RuntimeException("Error reading from file during PUT operation", e);
+		}
 	}
+	
+
 
 	/**
 	 * Downloads arbitrary data object associated with a given key
@@ -79,11 +126,35 @@ public class RUStoreClient {
 	 *        		Throw an exception if any other issues occur.
 	 */
 	public byte[] get(String key) {
-
-		// Implement here
-		return null;
-
+		try {
+			// 1. Send "GET" command
+			out.writeUTF("GET");
+	
+			// 2. Send the key
+			out.writeUTF(key);
+	
+			// 3. Await response from server
+			int response = in.readInt();
+	
+			if (response == 0) {  // Success
+				// 4. Read the length of the data
+				int dataLength = in.readInt();
+	
+				// 5. Read the actual data
+				byte[] data = new byte[dataLength];
+				in.readFully(data);
+				return data;
+			} else if (response == 1) {  // Key doesn't exist
+				return null;
+			} else {
+				throw new RuntimeException("Unexpected response from server during GET operation");
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+			throw new RuntimeException("Error during GET operation", e);
+		}
 	}
+	
 
 	/**
 	 * Downloads arbitrary data object associated with a given key
@@ -97,11 +168,23 @@ public class RUStoreClient {
 	 *        		Throw an exception otherwise
 	 */
 	public int get(String key, String file_path) {
-
-		// Implement here
-		return -1;
-
+		try {
+			// Use the GET operation for byte[] data
+			byte[] data = get(key);
+	
+			if (data == null) {
+				return 1;  // Key doesn't exist
+			}
+	
+			// Write the data to the file
+			Files.write(Paths.get(file_path), data);
+			return 0;  // Success
+		} catch (IOException e) {
+			e.printStackTrace();
+			throw new RuntimeException("Error writing to file during GET operation", e);
+		}
 	}
+	
 
 	/**
 	 * Removes data object associated with a given key 
@@ -115,11 +198,29 @@ public class RUStoreClient {
 	 *        		Throw an exception otherwise
 	 */
 	public int remove(String key) {
-
-		// Implement here
-		return -1;
-
+		try {
+			// 1. Send "REMOVE" command
+			out.writeUTF("REMOVE");
+	
+			// 2. Send the key
+			out.writeUTF(key);
+	
+			// 3. Await response from server
+			int response = in.readInt();
+	
+			if (response == 0) {  // Success
+				return 0;
+			} else if (response == 1) {  // Key doesn't exist
+				return 1;
+			} else {
+				throw new RuntimeException("Unexpected response from server during REMOVE operation");
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+			throw new RuntimeException("Error during REMOVE operation", e);
+		}
 	}
+	
 
 	/**
 	 * Retrieves of list of object keys from the object store server
@@ -128,11 +229,29 @@ public class RUStoreClient {
 	 *        		Throw an exception if any other issues occur.
 	 */
 	public String[] list() {
-
-		// Implement here
-		return null;
-
+		try {
+			// 1. Send "LIST" command
+			out.writeUTF("LIST");
+	
+			// 2. Await response from server for the number of keys
+			int keyCount = in.readInt();
+	
+			if (keyCount == 0) {
+				return null;
+			}
+	
+			String[] keys = new String[keyCount];
+			for (int i = 0; i < keyCount; i++) {
+				keys[i] = in.readUTF();
+			}
+	
+			return keys;
+		} catch (IOException e) {
+			e.printStackTrace();
+			throw new RuntimeException("Error during LIST operation", e);
+		}
 	}
+	
 
 	/**
 	 * Signals to server to close connection before closes 
@@ -141,9 +260,19 @@ public class RUStoreClient {
 	 * @return		n/a, however throw an exception if any issues occur
 	 */
 	public void disconnect() {
-
-		// Implement here
-
+		try {
+			// 1. Send "DISCONNECT" command
+			out.writeUTF("DISCONNECT");
+	
+			// 2. Close the streams and the socket
+			in.close();
+			out.close();
+			socket.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+			throw new RuntimeException("Error during DISCONNECT operation", e);
+		}
 	}
+	
 
 }
