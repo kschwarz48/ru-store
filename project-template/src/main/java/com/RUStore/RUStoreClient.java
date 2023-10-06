@@ -1,14 +1,12 @@
 package com.RUStore;
 
 /* any necessary Java packages here */
-
 import java.io.*;
 import java.net.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
 public class RUStoreClient {
-
 	/* any necessary class members here */
 	private Socket socket;
     private DataOutputStream out;
@@ -24,8 +22,6 @@ public class RUStoreClient {
 	 * @param port	port number
 	 */
 	public RUStoreClient(String host, int port) {
-
-		// Implement here
 		this.host = host;
         this.port = port;
 	}
@@ -63,12 +59,12 @@ public class RUStoreClient {
 			out.write(data);
 			out.flush(); 
 
-			// Await response from server
+			// await response from server
 			int response = in.readInt();
 
-			if (response == 0) {  // Success
+			if (response == 0) {  // success
 				return 0;
-			} else if (response == 1) {  // Key already exists
+			} else if (response == 1) {  // key already exists
 				return 1;
 			} else {
 				throw new RuntimeException("Unexpected response from server during PUT operation");
@@ -79,8 +75,6 @@ public class RUStoreClient {
 		} 
 	}
 	
-	
-
 	/**
 	 * Sends an arbitrary data object to the object store server. If an 
 	 * object with the same key already exists, the object should NOT 
@@ -94,8 +88,6 @@ public class RUStoreClient {
 	 *        		Throw an exception otherwise
 	 */
 
-	
-
 	public int put(String key, String file_path) {
 		try {
 			byte[] data = Files.readAllBytes(Paths.get(file_path));
@@ -106,8 +98,6 @@ public class RUStoreClient {
 		}
 	}
 	
-
-
 		/**
 	 * Downloads arbitrary data object associated with a given key
 	 * from the object store server.
@@ -119,24 +109,24 @@ public class RUStoreClient {
 	 */
 	public byte[] get(String key) {
 		try {
-			// Send "GET" command
+			// send get command string
 			out.writeUTF("GET");
 
-			// Send the key
+			// send the key
 			out.writeUTF(key);
 
-			// Await response from server
+			// await response from server
 			int response = in.readInt();
 
 			if (response == 0) {  // Success
-				// Read the length of the data
+				// read the length of the data
 				int dataLength = in.readInt();
 
-				// Read the actual data
+				// read the actual data
 				byte[] data = new byte[dataLength];
 				in.readFully(data);
 				return data;
-			} else if (response == 1) {  // Key doesn't exist
+			} else if (response == 1) {  // key doesn't exist
 				return null;
 			} else {
 				throw new RuntimeException("Unexpected response from server during GET operation");
@@ -163,19 +153,17 @@ public class RUStoreClient {
 			byte[] data = get(key);
 
 			if (data == null) {
-				return 1;  // Key doesn't exist
+				return 1;  // key doesn't exist
 			}
 
-			// Write the data to the file
+			// write the data to the file
 			Files.write(Paths.get(file_path), data);
-			return 0;  // Success
+			return 0;  // success
 		} catch (IOException e) {
 			e.printStackTrace();
 			throw new RuntimeException("Error writing to file during GET operation", e);
 		}
 	}
-
-	
 
 	/**
 	 * Removes data object associated with a given key 
@@ -190,18 +178,18 @@ public class RUStoreClient {
 	 */
 	public int remove(String key) {
 		try {
-			// Send "REMOVE" command
+			// send remove command
 			out.writeUTF("REMOVE");
 	
-			// Send the key
+			// send the key
 			out.writeUTF(key);
 	
-			// Await response from server
+			// swait response from server
 			int response = in.readInt();
 	
-			if (response == 0) {  // Success
+			if (response == 0) {  // success
 				return 0;
-			} else if (response == 1) {  // Key doesn't exist
+			} else if (response == 1) {  // key doesn't exist
 				return 1;
 			} else {
 				throw new RuntimeException("Unexpected response from server during REMOVE operation");
@@ -212,7 +200,6 @@ public class RUStoreClient {
 		}
 	}
 	
-
 	/**
 	 * Retrieves of list of object keys from the object store server
 	 * 
@@ -221,10 +208,10 @@ public class RUStoreClient {
 	 */
 	public String[] list() {
 		try {
-			// Send "LIST" command
+			// send LIST command string
 			out.writeUTF("LIST");
 	
-			// Await response from server for the number of keys
+			// await response from server for the number of keys
 			int keyCount = in.readInt();
 	
 			if (keyCount == 0) {
@@ -243,7 +230,6 @@ public class RUStoreClient {
 		}
 	}
 	
-
 	/**
 	 * Signals to server to close connection before closes 
 	 * the client socket.
@@ -253,10 +239,10 @@ public class RUStoreClient {
 	public void disconnect() {
 		try {
 			if (!socket.isClosed()) {
-				// Send "DISCONNECT" command
+				// Send DISCONNECT command
 				out.writeUTF("DISCONNECT");
 	
-				// Close the streams and the socket
+				// close the streams and the socket
 				in.close();
 				out.close();
 				socket.close();
@@ -266,7 +252,4 @@ public class RUStoreClient {
 			throw new RuntimeException("Error during DISCONNECT operation", e);
 		}
 	}
-	
-	
-
 }
